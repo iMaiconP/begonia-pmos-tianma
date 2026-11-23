@@ -735,10 +735,33 @@ jobs:
         run: |
           set +e
           IR=$(ls -S "$GITHUB_WORKSPACE"/artifacts/images/initramfs* 2>/dev/null | head -1)
+          
           if [ -z "$IR" ]; then
             echo "::warning::no hay initramfs en el artifact, no se puede verificar"
             exit 0
           fi
+          
+          echo "initramfs original: $IR"
+          
+          # Resolver links simbolicos antes de verificar o arquivo.
+          IR=$(readlink -f "$IR")
+          
+          if [ -z "$IR" ] || [ ! -f "$IR" ] || [ ! -s "$IR" ]; then
+            echo "::error::initramfs inexistente, quebrado ou vazio"
+            exit 1
+          fi
+          
+          echo "initramfs real: $IR ($(stat -c%s "$IR") bytes)"
+
+# Resolver links simbolicos antes de verificar o arquivo.
+IR=$(readlink -f "$IR")
+
+if [ -z "$IR" ] || [ ! -f "$IR" ] || [ ! -s "$IR" ]; then
+  echo "::error::initramfs inexistente, quebrado ou vazio"
+  exit 1
+fi
+
+echo "initramfs real: $IR ($(stat -c%s "$IR") bytes)"
           echo "initramfs: $IR ($(stat -c%s "$IR") bytes)"
           rm -rf /tmp/ir && mkdir -p /tmp/ir && cd /tmp/ir
           # OJO: el initramfs de pmOS es un cpio comprimido y `file` no esta instalado
