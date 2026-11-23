@@ -604,7 +604,11 @@ jobs:
           CH sh -c 'ls -1 /usr/share/wayland-sessions/ 2>/dev/null || echo "(ninguna)"'
 
           echo "=== Reconstruir la imagen con el estado de la UI ==="
-          pmbootstrap "${FLAGS[@]}" -E "${{ github.event.inputs.extra_space }}" -j 2 install --password 147147 2>&1
+          echo "=== Encerrando chroots antes da reconstrução ==="
+          pmbootstrap "${FLAGS[@]}" shutdown
+          
+          echo "=== Reconstruindo imagem ==="
+          pmbootstrap "${FLAGS[@]}" -E "${{ github.event.inputs.extra_space }}" -j 2 install --password 147147
 
       - name: Verify the display manager is Plasma Mobile
         run: |
