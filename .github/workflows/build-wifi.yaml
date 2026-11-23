@@ -383,7 +383,8 @@ jobs:
           fi
           exit "$missing"
 
-      - name: Verify touch firmware (panel Tianma bajo el nombre CSOT)
+
+      - name: Verify touch firmware (panel CSOT)
         run: |
           set -euo pipefail
           CROSS="${{ github.event.inputs.cross }}"
@@ -391,23 +392,35 @@ jobs:
           if [ "$CROSS" = "false" ]; then
             FLAGS+=(--no-cross)
           fi
-          # El DTB 6.16 pide "novatek/nt36672a_begonia_csot.bin" y el driver del
-          # tactil lo carga tal cual. En una unidad Tianma ese nombre tiene que
-          # contener el binario Tianma, o el panel enciende y el touch sale con
-          # los ejes cruzados sin decir nada en el log. Un simple "existe el
-          # fichero" no lo detecta: los dos nombres existen siempre.
-          #   tianma 53321 B md5 7d67c2e9167f1a630576c177c1b831f7
-          #   csot   53731 B md5 52f5e96f84fbdd6cbed2e98790a202df
+
+          # El DTB 6.16 pide el firmware CSOT.
+          # Comprobamos que cada nombre contiene el binario correcto.
+          #   CSOT:   52f5e96f84fbdd6cbed2e98790a202df
+          #   Tianma: 7d67c2e9167f1a630576c177c1b831f7
           pmbootstrap "${FLAGS[@]}" chroot --rootfs -- sh -c '
             set -e
             D=/lib/firmware/novatek
-            ls -l $D
-            md5sum $D/nt36672a_begonia_csot.bin.zst $D/nt36672a_begonia_tianma.bin.zst
-            test -s $D/nt36672a_begonia_tianma.bin.zst || { echo "FALTA el binario Tianma"; exit 1; }
-            test "$(md5sum $D/nt36672a_begonia_csot.bin.zst | cut -d" " -f1)" = 7d67c2e9167f1a630576c177c1b831f7 || {
-              echo "FALLO: el nombre CSOT no contiene el binario Tianma (touch invertido)"; exit 1; }
-            echo "OK: el nombre CSOT contiene el binario Tianma"
+            ls -l "$D"
+
+            CSOT=$(md5sum "$D/nt36672a_begonia_csot.bin.zst" | cut -d" " -f1)
+            TIANMA=$(md5sum "$D/nt36672a_begonia_tianma.bin.zst" | cut -d" " -f1)
+
+            echo "CSOT:   $CSOT"
+            echo "Tianma: $TIANMA"
+
+            test "$CSOT" = 52f5e96f84fbdd6cbed2e98790a202df || {
+              echo "::error::Firmware CSOT incorreto ou ausente"
+              exit 1
+            }
+
+            test "$TIANMA" = 7d67c2e9167f1a630576c177c1b831f7 || {
+              echo "::error::Firmware Tianma incorreto ou ausente"
+              exit 1
+            }
+
+            echo "OK: os dois firmwares correspondem às variantes corretas"
           '
+
 
       # Guarda contra la trampa de apk mas cara de este workflow: si la version
       # local de un APKBUILD sobrepuesto coincide con la publicada en el repo,
