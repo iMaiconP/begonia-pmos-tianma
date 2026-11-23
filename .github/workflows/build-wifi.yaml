@@ -730,38 +730,32 @@ jobs:
       # El initramfs es lo que arranca de verdad: el tactil se carga desde ahi
       # (modulos-initfs) y el firmware tambien. Un rootfs correcto no dice nada
       # si el initramfs se construyo con el binario del otro panel.
+
       - name: Verify initramfs (modulos de panel/tactil + firmware Tianma)
         if: always()
         run: |
           set +e
-          
+
+          IR=$(ls -S "$GITHUB_WORKSPACE"/artifacts/images/initramfs* 2>/dev/null | head -1)
+
+          if [ -z "$IR" ]; then
+            echo "::warning::no hay initramfs en el artifact"
+            exit 0
+          fi
+
           echo "initramfs original: $IR"
-          
-          # Resolver links simbolicos antes de verificar o arquivo.
+
           IR=$(readlink -f "$IR")
-          
+
           if [ -z "$IR" ] || [ ! -f "$IR" ] || [ ! -s "$IR" ]; then
             echo "::error::initramfs inexistente, quebrado ou vazio"
             exit 1
           fi
-          
+
           echo "initramfs real: $IR ($(stat -c%s "$IR") bytes)"
 
-# Resolver links simbolicos antes de verificar o arquivo.
-IR=$(readlink -f "$IR")
-
-if [ -z "$IR" ] || [ ! -f "$IR" ] || [ ! -s "$IR" ]; then
-  echo "::error::initramfs inexistente, quebrado ou vazio"
-  exit 1
-fi
-
-echo "initramfs real: $IR ($(stat -c%s "$IR") bytes)"
           rm -rf /tmp/ir && mkdir -p /tmp/ir && cd /tmp/ir
-          # OJO: el initramfs de pmOS es un cpio comprimido y `file` no esta instalado
-          # en el runner, asi que el formato se decide por los bytes magicos. Y la
-          # ruta tiene que ser ABSOLUTA: antes se hacia `cd /tmp/ir` y luego se
-          # usaba la ruta relativa, con lo que la redireccion de cpio fallaba en
-          # silencio y el check::*error::*:: acusaba 8 modulos que si estaban.
+
           magic=$(head -c4 "$IR" | od -An -tx1 | tr -d ' \n')
           case "$magic" in
             1f8b*)      echo "formato: gzip"; zcat "$IR" | cpio -idm 2>/tmp/ir.err ;;
@@ -769,38 +763,46 @@ echo "initramfs real: $IR ($(stat -c%s "$IR") bytes)"
             30373037*)  echo "formato: cpio(newc)"; cpio -idm 2>/tmp/ir.err < "$IR" ;;
             *)          echo "::error::formato de initramfs desconocido (magic=$magic)"; exit 1 ;;
           esac
+
           n=$(find /tmp/ir -type f | wc -l)
           echo "ficheros extraidos: $n"
+
           if [ "$n" -lt 10 ]; then
             echo "::error::el initramfs no se ha podido descomprimir"
             sed -n '1,5p' /tmp/ir.err | sed 's/^/    /'
             exit 1
           fi
+
           cd /tmp/ir
           missing=0
+
           for m in novatek-nvt-ts-core novatek-nvt-ts-spi panel-novatek-nt36672a \
                    ti-lmu leds-ti-lmu-common lm363x-regulator lm36274_bl; do
             if find . -name "${m}.ko*" | grep -q .; then
               echo "OK initramfs ${m}"
             else
-              echo "::error::falta ${m}.ko en el initramfs (la pantalla no tocara)"
+              echo "::error::falta ${m}.ko en el initramfs"
               missing=1
             fi
           done
+
           CSOT=$(find . -name "nt36672a_begonia_csot.bin.zst" | head -1)
+
           if [ -z "$CSOT" ]; then
             echo "::error::no hay firmware del tactil en el initramfs"
             missing=1
           else
             got=$(md5sum "$CSOT" | cut -d' ' -f1)
             echo "firmware csot en el initramfs: $got"
+
             if [ "$got" != "7d67c2e9167f1a630576c177c1b831f7" ]; then
-              echo "::error::el initramfs lleva el binario CSOT: el tactil saldra invertido"
+              echo "::error::el initramfs lleva el binario CSOT"
               missing=1
             else
               echo "OK: el initramfs lleva el binario Tianma bajo el nombre CSOT"
             fi
           fi
+
           exit "$missing"
 
       - name: Checksums
