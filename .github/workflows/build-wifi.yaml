@@ -803,22 +803,24 @@ jobs:
             fi
           done
 
+
           CSOT=$(find . -name "nt36672a_begonia_csot.bin.zst" | head -1)
 
           if [ -z "$CSOT" ]; then
-            echo "::error::no hay firmware del tactil en el initramfs"
+            echo "::error::No hay firmware CSOT en el initramfs"
             missing=1
           else
             got=$(md5sum "$CSOT" | cut -d' ' -f1)
-            echo "firmware csot en el initramfs: $got"
+            echo "firmware CSOT en el initramfs: $got"
 
-            if [ "$got" != "7d67c2e9167f1a630576c177c1b831f7" ]; then
-              echo "::error::el initramfs lleva el binario CSOT"
+            if [ "$got" != "52f5e96f84fbdd6cbed2e98790a202df" ]; then
+              echo "::error::El initramfs NO lleva el firmware CSOT correcto"
               missing=1
             else
-              echo "OK: el initramfs lleva el binario Tianma bajo el nombre CSOT"
+              echo "OK: el initramfs lleva el firmware CSOT correcto"
             fi
           fi
+
 
           exit "$missing"
 
