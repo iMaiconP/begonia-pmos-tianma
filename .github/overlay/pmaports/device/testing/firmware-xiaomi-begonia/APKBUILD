@@ -46,9 +46,6 @@ touchscreen() {
 
 	install -Dm644 "$srcdir/10-touch-firmware.files" -t \
     	"$subpkgdir/usr/share/mkinitfs/files/"
-
-	install -Dm644 "$srcdir/10-touch-firmware.files" -t \
-		"$subpkgdir/usr/share/mkinitfs/files/"
 }
 
 connectivity() {
