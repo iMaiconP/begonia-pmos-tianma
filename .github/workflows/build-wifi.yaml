@@ -527,10 +527,19 @@ jobs:
             # los tres modulos tienen que existir en la imagen, o el modprobe
             # del servicio falla en el primer arranque
             for m in mtk-vendor-btif wmt_drv wlan_gen4m; do
-              modinfo "$m" >/dev/null 2>&1 \
-                || { echo "::error::el modulo $m no esta en la imagen"; exit 1; }
-            done
+              module=$(find /usr/lib/modules -type f \
+                \( -name "$m.ko" -o -name "$m.ko.*" \) -print -quit)
 
+              if [ -z "$module" ]; then
+                echo "::error::el modulo $m no esta en la imagen"
+                exit 1
+              fi
+
+              modinfo "$module" >/dev/null 2>&1 \
+                || { echo "::error::modinfo fallo para $module"; exit 1; }
+
+              echo "OK modinfo $m: $module"
+            done
             echo "OK: el servicio de arranque del wifi esta instalado y bien cableado"
           '
 
